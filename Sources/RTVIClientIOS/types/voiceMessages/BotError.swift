@@ -1,9 +1,11 @@
 import Foundation
 
 public struct BotError: Codable {
-    public let message: String
+    public let error: String
+    public let fatal: Bool?
 
-    init(message: String) {
-        self.message = message
+    init(error: String, fatal: Bool) {
+        self.error = error
+        self.fatal = fatal
     }
 }
