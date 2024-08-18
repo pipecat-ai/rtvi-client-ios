@@ -57,10 +57,11 @@ open class VoiceClient {
             Logger.shared.warn("RECEIVED ON ERROR \(voiceMessage)")
             _ = self.messageDispatcher.reject(message: voiceMessage)
             if let botError = try? JSONDecoder().decode(BotError.self, from: Data(voiceMessage.data!.utf8)) {
-                // All errors that we currently receive from the bot are fatals, so we are disconnecting from the call.
-                let errorMessage = "Received a fatal error from the Bot: \(botError.message)"
+                let errorMessage = "Received a fatal error from the Bot: \(botError.error)"
                 self.delegate?.onError(message: errorMessage)
-                self.disconnect(completion: nil)
+                if(botError.fatal ?? false) {
+                    self.disconnect(completion: nil)
+                }
             }
         default:
             // Check if we have handlers to deal with the message
@@ -121,6 +122,13 @@ open class VoiceClient {
         var request = URLRequest(url: url)
         request.httpMethod = "POST"
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
+        
+        // Adding the custom headers if they have been provided
+        for header in self.options.customHeaders {
+            for (key, value) in header {
+                request.setValue(value, forHTTPHeaderField: key)
+            }
+        }
         
         do {
             request.httpBody = try JSONEncoder().encode(

@@ -14,6 +14,9 @@ public struct VoiceClientOptions: Codable {
     /// Further configuration options for the backend.
     public let config: [ServiceConfig]
     
+    /// Custom HTTP headers to be sent with the POST request to baseUrl.
+    public let customHeaders: [[String: String]]
+    
     public init() {
         self.init(enableMic: true, enableCam: true, services: [:], config: [])
     }
@@ -22,12 +25,14 @@ public struct VoiceClientOptions: Codable {
         enableMic: Bool = true,
         enableCam: Bool = false,
         services: [String: String] = [:],
-        config: [ServiceConfig] = []
+        config: [ServiceConfig] = [],
+        customHeaders: [[String: String]] = []
     ) {
         self.enableMic = enableMic
         self.enableCam = enableCam
         self.services = services
         self.config = config
+        self.customHeaders = customHeaders
     }
     
 }
