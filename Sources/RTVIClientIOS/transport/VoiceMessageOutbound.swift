@@ -15,9 +15,10 @@ public struct VoiceMessageOutbound: Encodable {
         static let DESCRIBE_CONFIG = "describe-config"
         static let ACTION = "action"
         static let DESCRIBE_ACTIONS = "describe-actions"
+        public static let CLIENT_READY = "client-ready"
     }
     
-    init(id: String = String (UUID().uuidString.prefix(8)), label: String = "rtvi-ai", type: String, data: Value? = nil) {
+    public init(id: String = String (UUID().uuidString.prefix(8)), label: String = "rtvi-ai", type: String, data: Value? = nil) {
         self.id = id
         self.label = label
         self.type = type
