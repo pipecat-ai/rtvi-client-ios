@@ -131,9 +131,17 @@ open class VoiceClient {
         }
         
         do {
-            request.httpBody = try JSONEncoder().encode(
-                ConnectionBundle(services: self.options.services, config: self.options.config)
-            )
+            if let customBodyParams = options.customBodyParams {
+                var customBundle:Value = try await customBodyParams.convertToRtviValue()
+                try customBundle.addProperty(key: "services", value: try await self.options.services.convertToRtviValue())
+                try customBundle.addProperty(key: "config", value: try await self.options.config.convertToRtviValue())
+                request.httpBody = try JSONEncoder().encode( customBundle )
+
+            } else {
+                request.httpBody = try JSONEncoder().encode(
+                    ConnectionBundle(services: self.options.services, config: self.options.config)
+                )
+            }
             
             Logger.shared.debug("Will request bundle \(String(data: request.httpBody!, encoding: .utf8) ?? "")")
             
