@@ -44,6 +44,14 @@ public enum Value: Codable, Equatable {
             try container.encode(valueDictionary)
         }
     }
+    
+    public mutating func addProperty(key: String, value: Value?) throws {
+        guard case .object(var dictionary) = self else {
+            throw ValueDecodingError(message: "Cannot add properties to non-object Value")
+        }
+        dictionary[key] = value
+        self = .object(dictionary)
+    }
 }
 
 extension Value: ExpressibleByBooleanLiteral {
