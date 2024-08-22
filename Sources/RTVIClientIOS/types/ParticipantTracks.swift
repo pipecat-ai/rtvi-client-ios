@@ -1,7 +1,7 @@
 import Foundation
 
 /// Media tracks associated with a participant.
-public struct ParticipantTracks {
+public struct ParticipantTracks: Equatable {
     let audio: MediaTrackId?
     let video: MediaTrackId?
     

@@ -1,7 +1,7 @@
 import Foundation
 
 /// Media tracks for the local user and remote bot.
-public struct Tracks {
+public struct Tracks: Equatable {
     let local: ParticipantTracks
     let bot: ParticipantTracks?
     
