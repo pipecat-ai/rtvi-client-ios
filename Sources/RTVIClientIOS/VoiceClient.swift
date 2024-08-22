@@ -485,6 +485,11 @@ open class VoiceClient {
         self.transport.release()
     }
     
+    /// The expiry time for the transport session, if applicable. Measured in seconds since the UNIX epoch (UTC).
+    public func expiry() -> Int? {
+        self.transport.expiry()
+    }
+    
     func assertReady() throws -> Void{
         if self.state != .ready {
             throw BotNotReadyError()
