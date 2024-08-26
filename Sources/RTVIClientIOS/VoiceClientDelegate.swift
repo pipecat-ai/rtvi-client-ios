@@ -79,6 +79,9 @@ public protocol VoiceClientDelegate: AnyObject {
 
     /// Invoked when a message from the backend is received which was not handled by the VoiceClient or a registered helper.
     func onGenericMessage (message:VoiceMessageInbound)
+    
+    /// Invoked when the set of available cam/mic tracks changes.
+    func onTracksUpdated(tracks: Tracks)
 }
 
 public extension VoiceClientDelegate {
@@ -108,4 +111,5 @@ public extension VoiceClientDelegate {
     func onBotTranscript( data: String) {}
     func onError( message: String) {}
     func onGenericMessage (message:VoiceMessageInbound) {}
+    func onTracksUpdated(tracks: Tracks) {}
 }
