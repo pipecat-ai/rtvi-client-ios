@@ -373,19 +373,19 @@ open class VoiceClient {
     }
     
     /// Updates the config on the server.
-    public func updateConfig(config: [ServiceConfig]) async throws -> ConfigResponse {
+    public func updateConfig(config: [ServiceConfig], interrup: Bool = false) async throws -> ConfigResponse {
         try self.assertReady()
-        let voiceMessageResponse =  try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.updateConfig(config: config))
+        let voiceMessageResponse =  try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.updateConfig(config: config, interrup: interrup))
         let configResponse = try JSONDecoder().decode(ConfigResponse.self, from: Data(voiceMessageResponse.data!.utf8))
         self.delegate?.onConfigUpdated(config: configResponse.config)
         return configResponse
     }
     
     /// Updates the config on the server.
-    public func updateConfig(config: [ServiceConfig], completion: ((Result<ConfigResponse, AsyncExecutionError>) -> Void)?) {
+    public func updateConfig(config: [ServiceConfig], interrup: Bool = false, completion: ((Result<ConfigResponse, AsyncExecutionError>) -> Void)?) {
         Task {
             do {
-                let configDescription = try await self.updateConfig(config:config)
+                let configDescription = try await self.updateConfig(config:config, interrup: interrup)
                 completion?(.success((configDescription)))
             } catch {
                 completion?(.failure(AsyncExecutionError(functionName: "updateConfig", underlyingError: error)))

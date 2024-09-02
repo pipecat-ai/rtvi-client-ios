@@ -32,9 +32,9 @@ public struct VoiceMessageOutbound: Encodable {
         )
     }
     
-    static func updateConfig(config: [ServiceConfig]) async throws -> VoiceMessageOutbound {
+    static func updateConfig(config: [ServiceConfig], interrup: Bool) async throws -> VoiceMessageOutbound {
         let configAsValue = try await config.convertToRtviValue()
-        let data = Value.object(["config": configAsValue])
+        let data = Value.object(["config": configAsValue, "interrup": Value.boolean(interrup)])
         return VoiceMessageOutbound(
             type: VoiceMessageOutbound.MessageType.UPDATE_CONFIG,
             data: data
