@@ -3,13 +3,13 @@ import Foundation
 public protocol LLMHelperDelegate {
     func onLLMJsonCompletion(jsonString: String)
     /// Invoked when the LLM attempts to invoke a function. The provided callback must be provided with a return value.
-    func onLLMFunctionCall(func: LLMFunctionCallData, onResult: ((Value) -> Void))
+    func onLLMFunctionCall(functionCallData: LLMFunctionCallData, onResult: ((Value) async -> Void)) async
     func onLLMFunctionCallStart(functionName: String)
 }
 
 public extension LLMHelperDelegate {
     func onLLMJsonCompletion(jsonString: String) {}
-    func onLLMFunctionCall(func: LLMFunctionCallData, onResult: ((Value) -> Void)) {}
+    func onLLMFunctionCall(functionCallData: LLMFunctionCallData, onResult: ((Value) async -> Void)) async {}
     func onLLMFunctionCallStart(functionName: String) {}
 }
 
@@ -26,10 +26,29 @@ private struct LLMMessageType {
 }
 
 public struct LLMFunctionCallData: Codable {
+    public let functionName: String
+    public let toolCallID: String
+    public let args: Value
+    
+    enum CodingKeys: String, CodingKey {
+        case functionName = "function_name"
+        case toolCallID = "tool_call_id"
+        case args
+    }
+}
+
+public struct LLMFunctionCallResult: Codable {
     let functionName: String
     let toolCallID: String
-    let args: Value
-    var result: Value?
+    let arguments: Value
+    let result: Value
+    
+    enum CodingKeys: String, CodingKey {
+        case functionName = "function_name"
+        case toolCallID = "tool_call_id"
+        case arguments
+        case result
+    }
 }
 
 public struct LLMContextMessage: Codable {
@@ -84,9 +103,9 @@ public class LLMHelper: VoiceClientHelper {
     private func _getMessagesKey() -> String {
         return self.isVoiceClientReady() ? "messages" : "initial_messages"
     }
-
+    
     // --- Actions
-
+    
     /// Returns the bot's current LLM context. Bot must be in the ready state.
     public func getContext() async throws -> LLMContext? {
         try await self.voiceClient.action(action: ActionRequest.init(
@@ -212,14 +231,22 @@ public class LLMHelper: VoiceClientHelper {
             }
         case LLMMessageType.Incoming.LLMFunctionCall:
             if let functionCallData = try? JSONDecoder().decode(LLMFunctionCallData.self, from: Data(msg.data!.utf8)) {
-                self.delegate?.onLLMFunctionCall(func: functionCallData) { result in
-                    let resultMessage = VoiceMessageOutbound(
-                        type: LLMMessageType.Outgoing.LLMFunctionCallResult,
-                        data: result
-                    )
-                    voiceClient.sendMessage(msg: resultMessage){ result in
-                        if case .failure(let error) = result {
-                            Logger.shared.error("Failing to send app result message \(error)")
+                Task {
+                    await self.delegate?.onLLMFunctionCall(functionCallData: functionCallData) { result in
+                        let resultData = try? await LLMFunctionCallResult(
+                            functionName: functionCallData.functionName,
+                            toolCallID: functionCallData.toolCallID,
+                            arguments: functionCallData.args,
+                            result: result
+                        ).convertToRtviValue()
+                        let resultMessage = VoiceMessageOutbound(
+                            type: LLMMessageType.Outgoing.LLMFunctionCallResult,
+                            data: resultData
+                        )
+                        voiceClient.sendMessage(msg: resultMessage){ result in
+                            if case .failure(let error) = result {
+                                Logger.shared.error("Failing to send app result message \(error)")
+                            }
                         }
                     }
                 }
