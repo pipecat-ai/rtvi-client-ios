@@ -9,6 +9,7 @@ public enum TransportState {
     case connecting
     case connected
     case ready
+    case disconnecting
     case disconnected
     case error
 }
@@ -30,6 +31,8 @@ extension TransportState {
             return "Connected"
         case .ready:
             return "Ready"
+        case .disconnecting:
+            return "Disconnecting"
         case .disconnected:
             return "Disconnected"
         case .error:

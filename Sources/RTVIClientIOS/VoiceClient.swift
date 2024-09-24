@@ -10,6 +10,8 @@ open class VoiceClient {
     private let messageDispatcher: MessageDispatcher
     private var helpers: [String: RegisteredHelper] = [:]
     
+    private var disconnectRequested: Bool = false
+    
     private lazy var onMessage: (VoiceMessageInbound) -> Void = {(voiceMessage: VoiceMessageInbound) in
         guard let type = voiceMessage.type else {
             // Ignoring the message, it doesn't have a type
@@ -160,20 +162,43 @@ open class VoiceClient {
     /// Initiate an RTVI session, connecting to the backend.
     public func start() async throws {
         do {
+            self.disconnectRequested = false
             if(self.transport.state() == .idle) {
                 try await self.initDevices()
             }
             
-            self.transport.setState(state: .handshaking)
+            if(self.bailIfDisconnected()) {
+                return
+            }
             
+            self.transport.setState(state: .handshaking)
             // Send POST request to the provided baseUrl to connect and start the bot
             let authBundle = try await fetchAuthBundle()
+            
+            if(self.bailIfDisconnected()) {
+                return
+            }
+            
             try await self.transport.connect(authBundle: authBundle)
+            
+            if(self.bailIfDisconnected()) {
+                return
+            }
         } catch {
             self.disconnect(completion: nil)
             self.transport.setState(state: .disconnected)
             throw StartBotError(underlyingError: error)
         }
+    }
+    
+    private func bailIfDisconnected() -> Bool {
+        if (self.disconnectRequested) {
+            if (self.transport.state() != .disconnecting && self.transport.state() != .disconnected) {
+                self.disconnect(completion: nil)
+            }
+            return true
+        }
+        return false
     }
     
     /// Initiate an RTVI session, connecting to the backend.
@@ -207,6 +232,8 @@ open class VoiceClient {
     
     /// Disconnect an active RTVI session.
     public func disconnect() async throws {
+        self.transport.setState(state: .disconnecting)
+        self.disconnectRequested = true
         try await self.transport.disconnect()
     }
     
