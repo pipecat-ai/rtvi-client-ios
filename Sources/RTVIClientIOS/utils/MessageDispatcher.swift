@@ -3,16 +3,19 @@ import Foundation
 /// Helper class for sending messages to the server and awaiting the response.
 class MessageDispatcher {
     
-    private var transport: Transport
+    private let transport: Transport
+    private let httpMessageDispatcher: HTTPMessageDispatcher
+    
     /// How long to wait before resolving the message/
     private var gcTime: TimeInterval
     @MainActor
     private var queue: [QueuedVoiceMessage] = []
     private var gcTimer: Timer?
 
-    init(transport: Transport) {
+    init(transport: Transport, httpMessageDispatcher: HTTPMessageDispatcher) {
         self.gcTime = 10.0 // 10 seconds
         self.transport = transport
+        self.httpMessageDispatcher = httpMessageDispatcher
         startGCTimer()
     }
 
@@ -21,15 +24,19 @@ class MessageDispatcher {
     }
 
     @MainActor 
-    func dispatch(message: VoiceMessageOutbound) throws-> Promise<VoiceMessageInbound> {
-        let promise = Promise<VoiceMessageInbound>()
+    func dispatch(message: RTVIMessageOutbound) throws-> Promise<RTVIMessageInbound> {
+        let promise = Promise<RTVIMessageInbound>()
         self.queue.append(QueuedVoiceMessage(
             message: message,
             timestamp: Date(),
             promise: promise
         ))
         do {
-            try self.transport.sendMessage(message: message)
+            if self.transport.isConnected() {
+                try self.transport.sendMessage(message: message)
+            } else {
+                try self.httpMessageDispatcher.sendMessage(message: message)
+            }
         } catch {
             Logger.shared.error("Failed to send app message \(error)")
             if let index = queue.firstIndex(where: { $0.message.id == message.id }) {
@@ -42,11 +49,11 @@ class MessageDispatcher {
     }
     
     @MainActor
-    func dispatchAsync(message: VoiceMessageOutbound) async throws -> VoiceMessageInbound {
+    func dispatchAsync(message: RTVIMessageOutbound) async throws -> RTVIMessageInbound {
         try await withCheckedThrowingContinuation { continuation in
             do {
                 let promise = try self.dispatch(message: message)
-                promise.onResolve = { (inboundMessage: VoiceMessageInbound) in
+                promise.onResolve = { (inboundMessage: RTVIMessageInbound) in
                     continuation.resume(returning: inboundMessage)
                 }
                 promise.onReject = { (error: Error) in
@@ -58,7 +65,7 @@ class MessageDispatcher {
         }
     }
 
-    private func resolveReject(message: VoiceMessageInbound, resolve: Bool = true) -> VoiceMessageInbound {
+    private func resolveReject(message: RTVIMessageInbound, resolve: Bool = true) -> RTVIMessageInbound {
         DispatchQueue.main.async {
             if let index = self.queue.firstIndex(where: { $0.message.id == message.id }) {
                 let queuedMessage = self.queue[index]
@@ -80,11 +87,11 @@ class MessageDispatcher {
             
     }
 
-    func resolve(message: VoiceMessageInbound) -> VoiceMessageInbound {
+    func resolve(message: RTVIMessageInbound) -> RTVIMessageInbound {
         return resolveReject(message: message, resolve: true)
     }
 
-    func reject(message: VoiceMessageInbound) -> VoiceMessageInbound {
+    func reject(message: RTVIMessageInbound) -> RTVIMessageInbound {
         return resolveReject(message: message, resolve: false)
     }
     
@@ -116,7 +123,7 @@ class MessageDispatcher {
 }
 
 struct QueuedVoiceMessage {
-    let message: VoiceMessageOutbound
+    let message: RTVIMessageOutbound
     let timestamp: Date
-    let promise: Promise<VoiceMessageInbound>
+    let promise: Promise<RTVIMessageInbound>
 }

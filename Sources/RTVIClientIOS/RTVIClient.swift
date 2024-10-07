@@ -2,58 +2,74 @@ import Foundation
 
 /// An RTVI client. Connects to an RTVI backend and handles bidirectional audio and video.
 @MainActor
-open class VoiceClient {
+open class RTVIClient {
     
-    private let options: VoiceClientOptions
+    private let options: RTVIClientOptions
     private var transport: Transport
-    private let baseUrl: String
+    private var baseUrl: String
+
     private let messageDispatcher: MessageDispatcher
     private var helpers: [String: RegisteredHelper] = [:]
+    private var devicesInitialized: Bool = false
     
-    private lazy var onMessage: (VoiceMessageInbound) -> Void = {(voiceMessage: VoiceMessageInbound) in
+    private var disconnectRequested: Bool = false
+    
+    private lazy var onMessage: (RTVIMessageInbound) -> Void = {(voiceMessage: RTVIMessageInbound) in
         guard let type = voiceMessage.type else {
             // Ignoring the message, it doesn't have a type
             return
         }
         Logger.shared.debug("Received voice message \(voiceMessage)")
         switch type {
-        case VoiceMessageInbound.MessageType.BOT_READY:
+        case RTVIMessageInbound.MessageType.BOT_READY:
             self.transport.setState(state: .ready)
             if let botReadyData = try? JSONDecoder().decode(BotReadyData.self, from: Data(voiceMessage.data!.utf8)) {
                 self.delegate?.onBotReady(botReadyData: botReadyData)
             }
-        case VoiceMessageInbound.MessageType.USER_TRANSCRIPTION:
+        case RTVIMessageInbound.MessageType.USER_TRANSCRIPTION:
             if let transcript = try? JSONDecoder().decode(Transcript.self, from: Data(voiceMessage.data!.utf8)) {
                 self.delegate?.onUserTranscript(data: transcript)
             }
-        case VoiceMessageInbound.MessageType.BOT_TRANSCRIPTION:
+        case RTVIMessageInbound.MessageType.BOT_TRANSCRIPTION:
             if let transcript = try? JSONDecoder().decode(Transcript.self, from: Data(voiceMessage.data!.utf8)) {
                 self.delegate?.onBotTranscript(data: transcript.text)
             }
-        case VoiceMessageInbound.MessageType.PIPECAT_METRICS:
+        case RTVIMessageInbound.MessageType.BOT_LLM_TEXT:
+            if let botLLMText = try? JSONDecoder().decode(BotLLMText.self, from: Data(voiceMessage.data!.utf8)) {
+                self.delegate?.onBotLLMText(data: botLLMText)
+            }
+        case RTVIMessageInbound.MessageType.BOT_TTS_TEXT:
+            if let botTTSText = try? JSONDecoder().decode(BotTTSText.self, from: Data(voiceMessage.data!.utf8)) {
+                self.delegate?.onBotTTSText(data: botTTSText)
+            }
+        case RTVIMessageInbound.MessageType.STORAGE_ITEM_STORED:
+            if let storedData = try? JSONDecoder().decode(StorageItemStoredData.self, from: Data(voiceMessage.data!.utf8)) {
+                self.delegate?.onStorageItemStored(data: storedData)
+            }
+        case RTVIMessageInbound.MessageType.PIPECAT_METRICS:
             guard let metrics = voiceMessage.metrics else {
                 return
             }
             self.delegate?.onMetrics(data: metrics)
-        case VoiceMessageInbound.MessageType.USER_STARTED_SPEAKING:
+        case RTVIMessageInbound.MessageType.USER_STARTED_SPEAKING:
             self.delegate?.onUserStartedSpeaking()
-        case VoiceMessageInbound.MessageType.USER_STOPPED_SPEAKING:
+        case RTVIMessageInbound.MessageType.USER_STOPPED_SPEAKING:
             self.delegate?.onUserStoppedSpeaking()
-        case VoiceMessageInbound.MessageType.ACTION_RESPONSE:
+        case RTVIMessageInbound.MessageType.ACTION_RESPONSE:
             _ = self.messageDispatcher.resolve(message: voiceMessage)
-        case VoiceMessageInbound.MessageType.DESCRIBE_ACTION_RESPONSE:
+        case RTVIMessageInbound.MessageType.DESCRIBE_ACTION_RESPONSE:
             _ = self.messageDispatcher.resolve(message: voiceMessage)
-        case VoiceMessageInbound.MessageType.DESCRIBE_CONFIG_RESPONSE:
+        case RTVIMessageInbound.MessageType.DESCRIBE_CONFIG_RESPONSE:
             _ = self.messageDispatcher.resolve(message: voiceMessage)
-        case VoiceMessageInbound.MessageType.CONFIG_RESPONSE:
+        case RTVIMessageInbound.MessageType.CONFIG_RESPONSE:
             _ = self.messageDispatcher.resolve(message: voiceMessage)
-        case VoiceMessageInbound.MessageType.ERROR_RESPONSE:
+        case RTVIMessageInbound.MessageType.ERROR_RESPONSE:
             Logger.shared.warn("RECEIVED ON ERROR_RESPONSE \(voiceMessage)")
             _ = self.messageDispatcher.reject(message: voiceMessage)
             if let errorResponse = try? JSONDecoder().decode(ErrorResponse.self, from: Data(voiceMessage.data!.utf8)) {
                 self.delegate?.onError(message: errorResponse.error)
             }
-        case VoiceMessageInbound.MessageType.ERROR:
+        case RTVIMessageInbound.MessageType.ERROR:
             Logger.shared.warn("RECEIVED ON ERROR \(voiceMessage)")
             _ = self.messageDispatcher.reject(message: voiceMessage)
             if let botError = try? JSONDecoder().decode(BotError.self, from: Data(voiceMessage.data!.utf8)) {
@@ -78,8 +94,8 @@ open class VoiceClient {
     }
     
     /// The object that acts as the delegate of the voice client.
-    private weak var _delegate: VoiceClientDelegate? = nil
-    public weak var delegate: VoiceClientDelegate? {
+    private weak var _delegate: RTVIClientDelegate? = nil
+    public weak var delegate: RTVIClientDelegate? {
         get {
             return _delegate
         }
@@ -89,11 +105,18 @@ open class VoiceClient {
         }
     }
     
-    public init(baseUrl:String, transport:Transport, options: VoiceClientOptions) {
-        self.baseUrl = baseUrl
+    public init(baseUrl:String? = nil, transport:Transport, options: RTVIClientOptions) {
+        self.baseUrl = baseUrl ?? options.params.baseUrl
         self.options = options
         self.transport = transport
-        self.messageDispatcher = MessageDispatcher.init(transport: transport)
+        
+        let headers = options.customHeaders ?? options.params.headers
+        let requestData = options.customBodyParams ?? options.params.requestData
+        
+        let httpMessageDispatcher = HTTPMessageDispatcher.init(baseUrl: self.baseUrl, endpoints: self.options.params.endpoints, headers: headers, requestData: requestData)
+        self.messageDispatcher = MessageDispatcher.init(transport: transport, httpMessageDispatcher: httpMessageDispatcher)
+        
+        httpMessageDispatcher.onMessage = self.onMessage
         self.transport.onMessage = self.onMessage
     }
     
@@ -111,11 +134,20 @@ open class VoiceClient {
     
     /// Initialize local media devices such as camera and microphone.
     public func initDevices() async throws {
+        if (self.devicesInitialized) {
+            // There is nothing to do in this case
+            return
+        }
         try await self.transport.initDevices()
+        self.devicesInitialized = true
+    }
+    
+    private func connectUrl() -> String {
+        return self.baseUrl + self.options.params.endpoints.connect
     }
     
     private func fetchAuthBundle() async throws -> AuthBundle {
-        guard let url = URL(string: self.baseUrl) else {
+        guard let url = URL(string: self.connectUrl()) else {
             throw InvalidAuthBundleError()
         }
         
@@ -124,22 +156,24 @@ open class VoiceClient {
         request.setValue("application/json", forHTTPHeaderField: "Content-Type")
         
         // Adding the custom headers if they have been provided
-        for header in self.options.customHeaders {
+        let headers = options.customHeaders ?? options.params.headers
+        for header in headers {
             for (key, value) in header {
                 request.setValue(value, forHTTPHeaderField: key)
             }
         }
         
         do {
-            if let customBodyParams = options.customBodyParams {
+            let requestData = options.customBodyParams ?? options.params.requestData
+            let config = options.config ?? options.params.config
+            if let customBodyParams = requestData {
                 var customBundle:Value = try await customBodyParams.convertToRtviValue()
                 try customBundle.addProperty(key: "services", value: try await self.options.services.convertToRtviValue())
-                try customBundle.addProperty(key: "config", value: try await self.options.config.convertToRtviValue())
+                try customBundle.addProperty(key: "config", value: try await config.convertToRtviValue())
                 request.httpBody = try JSONEncoder().encode( customBundle )
-
             } else {
                 request.httpBody = try JSONEncoder().encode(
-                    ConnectionBundle(services: self.options.services, config: self.options.config)
+                    ConnectionBundle(services: self.options.services, config: config)
                 )
             }
             
@@ -148,32 +182,55 @@ open class VoiceClient {
             let (data, response) = try await URLSession.shared.data(for: request)
             
             guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                throw FetchAuthBundleError()
+                throw HttpError()
             }
             
             return AuthBundle(data: String(data: data, encoding: .utf8)!)
         } catch {
-            throw FetchAuthBundleError(underlyingError: error)
+            throw HttpError(underlyingError: error)
         }
     }
     
     /// Initiate an RTVI session, connecting to the backend.
     public func start() async throws {
         do {
-            if(self.transport.state() == .idle) {
+            self.disconnectRequested = false
+            if(!self.devicesInitialized) {
                 try await self.initDevices()
             }
             
-            self.transport.setState(state: .handshaking)
+            if(self.bailIfDisconnected()) {
+                return
+            }
             
+            self.transport.setState(state: .authenticating)
             // Send POST request to the provided baseUrl to connect and start the bot
             let authBundle = try await fetchAuthBundle()
+            
+            if(self.bailIfDisconnected()) {
+                return
+            }
+            
             try await self.transport.connect(authBundle: authBundle)
+            
+            if(self.bailIfDisconnected()) {
+                return
+            }
         } catch {
             self.disconnect(completion: nil)
             self.transport.setState(state: .disconnected)
             throw StartBotError(underlyingError: error)
         }
+    }
+    
+    private func bailIfDisconnected() -> Bool {
+        if (self.disconnectRequested) {
+            if (self.transport.state() != .disconnecting && self.transport.state() != .disconnected) {
+                self.disconnect(completion: nil)
+            }
+            return true
+        }
+        return false
     }
     
     /// Initiate an RTVI session, connecting to the backend.
@@ -189,12 +246,12 @@ open class VoiceClient {
     }
     
     /// Directly send a message to the bot via the transport.
-    func sendMessage(msg: VoiceMessageOutbound) async throws {
+    func sendMessage(msg: RTVIMessageOutbound) async throws {
         try await self.transport.sendMessage(message: msg)
     }
     
     /// Directly send a message to the bot via the transport.
-    func sendMessage(msg: VoiceMessageOutbound, completion: ((Result<Void, AsyncExecutionError>) -> Void)?) {
+    func sendMessage(msg: RTVIMessageOutbound, completion: ((Result<Void, AsyncExecutionError>) -> Void)?) {
         Task {
             do {
                 try await self.sendMessage(msg: msg)
@@ -207,6 +264,8 @@ open class VoiceClient {
     
     /// Disconnect an active RTVI session.
     public func disconnect() async throws {
+        self.transport.setState(state: .disconnecting)
+        self.disconnectRequested = true
         try await self.transport.disconnect()
     }
     
@@ -225,6 +284,11 @@ open class VoiceClient {
     /// The current state of the session.
     public var state: TransportState {
         self.transport.state()
+    }
+    
+    /// Check if the transport is connected
+    public func isConnected() -> Bool {
+        return self.transport.isConnected()
     }
     
     /// Returns a list of available audio input devices.
@@ -333,7 +397,7 @@ open class VoiceClient {
     /// Request the bot to send its current configuration
     public func getConfig() async throws -> ConfigResponse {
         try self.assertReady()
-        let voiceMessageResponse = try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.getConfig())
+        let voiceMessageResponse = try await self.messageDispatcher.dispatchAsync(message: RTVIMessageOutbound.getConfig())
         let configResponse = try JSONDecoder().decode(ConfigResponse.self, from: Data(voiceMessageResponse.data!.utf8))
         self.delegate?.onConfigUpdated(config: configResponse.config)
         return configResponse
@@ -354,7 +418,7 @@ open class VoiceClient {
     /// Request the bot to describe its current configuration
     public func describeConfig() async throws -> DescribeConfigResponse {
         try self.assertReady()
-        let voiceMessageResponse = try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.describeConfig())
+        let voiceMessageResponse = try await self.messageDispatcher.dispatchAsync(message: RTVIMessageOutbound.describeConfig())
         let describedConfig = try JSONDecoder().decode(DescribeConfigResponse.self, from: Data(voiceMessageResponse.data!.utf8))
         self.delegate?.onConfigDescribed(config: describedConfig.config)
         return describedConfig
@@ -375,7 +439,7 @@ open class VoiceClient {
     /// Updates the config on the server.
     public func updateConfig(config: [ServiceConfig], interrupt: Bool = false) async throws -> ConfigResponse {
         try self.assertReady()
-        let voiceMessageResponse =  try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.updateConfig(config: config, interrupt: interrupt))
+        let voiceMessageResponse =  try await self.messageDispatcher.dispatchAsync(message: RTVIMessageOutbound.updateConfig(config: config, interrupt: interrupt))
         let configResponse = try JSONDecoder().decode(ConfigResponse.self, from: Data(voiceMessageResponse.data!.utf8))
         self.delegate?.onConfigUpdated(config: configResponse.config)
         return configResponse
@@ -395,8 +459,7 @@ open class VoiceClient {
     
     /// Dispatch an action message to the bot
     public func action<T: Decodable>(action: ActionRequest, resultType: T.Type, unwrapResult: Bool = true) async throws -> T {
-        try self.assertReady()
-        let voiceMessageResponse =  try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.action(actionData: action))
+        let voiceMessageResponse =  try await self.messageDispatcher.dispatchAsync(message: RTVIMessageOutbound.action(actionData: action))
         if unwrapResult {
             return (try JSONDecoder().decode(ActionResponseWrapper<T>.self, from: Data(voiceMessageResponse.data!.utf8))).result
         } else {
@@ -424,7 +487,7 @@ open class VoiceClient {
     /// Describe available / registered actions the bot has
     public func describeActions() async throws -> DescribeActionResponse {
         try self.assertReady()
-        let voiceMessageResponse = try await self.messageDispatcher.dispatchAsync(message: VoiceMessageOutbound.describeActions())
+        let voiceMessageResponse = try await self.messageDispatcher.dispatchAsync(message: RTVIMessageOutbound.describeActions())
         let describedActions = try JSONDecoder().decode(DescribeActionResponse.self, from: Data(voiceMessageResponse.data!.utf8))
         self.delegate?.onActionsAvailable(actions: describedActions.actions)
         return describedActions
@@ -443,7 +506,7 @@ open class VoiceClient {
     }
     
     /// Registers a new helper with the client.
-    public func registerHelper<T: VoiceClientHelper>(service: String, helper: T.Type) throws -> T {
+    public func registerHelper<T: RTVIClientHelper>(service: String, helper: T.Type) throws -> T {
         if helpers.keys.contains(service) {
             throw OtherError(message: "Helper with name '\(service)' already registered")
         }
@@ -468,7 +531,7 @@ open class VoiceClient {
     }
     
     /// Retrieves a helper from the client.
-    public func getHelper<T: VoiceClientHelper>(service: String) throws -> T {
+    public func getHelper<T: RTVIClientHelper>(service: String) throws -> T {
         guard let entry = helpers[service] else {
             throw OtherError(message: "Helper with name '\(service)' not registered")
         }

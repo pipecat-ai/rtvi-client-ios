@@ -1,7 +1,7 @@
 import Foundation
 
 /// A protocol representing a base error occurring during an operation.
-public protocol VoiceError: Error {
+public protocol RTVIError: Error {
     /// A human-readable description of the error.
     var message: String { get }
     
@@ -9,15 +9,15 @@ public protocol VoiceError: Error {
     var underlyingError: Error? { get }
 }
 
-public extension VoiceError {
+public extension RTVIError {
     var underlyingError: Error? { return nil }
     
     /// Provides a detailed description of the error, including any underlying error.
     var localizedDescription: String {
-        if let underlyingError = self.underlyingError as? VoiceError {
+        if let underlyingError = self.underlyingError as? RTVIError {
             // Finding the root cause
-            var rootCauseError: VoiceError = underlyingError
-            while let underlyingError = rootCauseError.underlyingError as? VoiceError {
+            var rootCauseError: RTVIError = underlyingError
+            while let underlyingError = rootCauseError.underlyingError as? RTVIError {
                 rootCauseError = underlyingError
             }
             return "\(message) \(rootCauseError.localizedDescription)"
@@ -28,7 +28,7 @@ public extension VoiceError {
 }
 
 /// Invalid or malformed auth bundle provided to Transport.
-public struct InvalidAuthBundleError: VoiceError {
+public struct InvalidAuthBundleError: RTVIError {
     public let message: String = "Invalid or malformed auth bundle provided to Transport."
     public let underlyingError: Error?
     
@@ -37,8 +37,8 @@ public struct InvalidAuthBundleError: VoiceError {
     }
 }
 
-/// Failed to fetch the auth bundle.
-public struct FetchAuthBundleError: VoiceError {
+/// Failed to fetch the authentication bundle from the RTVI backend.
+public struct HttpError: RTVIError {
     public let message: String = "Failed to fetch the auth bundle."
     public let underlyingError: Error?
     
@@ -48,7 +48,7 @@ public struct FetchAuthBundleError: VoiceError {
 }
 
 /// Failed to fetch the auth bundle.
-public struct StartBotError: VoiceError {
+public struct StartBotError: RTVIError {
     public let message: String = "Failed to connect / invalid auth bundle from base url"
     public let underlyingError: Error?
     
@@ -58,7 +58,7 @@ public struct StartBotError: VoiceError {
 }
 
 /// Unable to update configuration.
-public struct ConfigUpdateError: VoiceError {
+public struct ConfigUpdateError: RTVIError {
     public let message: String = "Unable to update configuration."
     public let underlyingError: Error?
     
@@ -68,7 +68,7 @@ public struct ConfigUpdateError: VoiceError {
 }
 
 /// Bot is not ready yet.
-public struct BotNotReadyError: VoiceError {
+public struct BotNotReadyError: RTVIError {
     public let message: String = "Bot is not ready yet."
     public let underlyingError: Error?
     
@@ -78,7 +78,7 @@ public struct BotNotReadyError: VoiceError {
 }
 
 /// Received error response from backend.
-public struct BotResponseError: VoiceError {
+public struct BotResponseError: RTVIError {
     public let message: String
     public let underlyingError: Error?
     
@@ -89,7 +89,7 @@ public struct BotResponseError: VoiceError {
 }
 
 /// The operation timed out before it could complete.
-public struct ResponseTimeoutError: VoiceError {
+public struct ResponseTimeoutError: RTVIError {
     public let message: String = "The operation timed out before it could complete."
     public let underlyingError: Error?
     
@@ -99,7 +99,7 @@ public struct ResponseTimeoutError: VoiceError {
 }
 
 /// Received an error response when trying to execute the function.
-public struct AsyncExecutionError: VoiceError {
+public struct AsyncExecutionError: RTVIError {
     public let message: String
     public let underlyingError: Error?
     
@@ -110,7 +110,7 @@ public struct AsyncExecutionError: VoiceError {
 }
 
 /// An unknown error occurred..
-public struct OtherError: VoiceError {
+public struct OtherError: RTVIError {
     public let message: String
     public let underlyingError: Error?
     

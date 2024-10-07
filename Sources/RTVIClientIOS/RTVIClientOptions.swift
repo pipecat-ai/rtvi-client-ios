@@ -1,7 +1,11 @@
 import Foundation
 
 /// Configuration options when instantiating a VoiceClient.
-public struct VoiceClientOptions: Codable {
+public struct RTVIClientOptions: Codable {
+    
+    /// Connection parameters.
+    public let params: RTVIClientParams
+    
     /// Enable the user mic input. Defaults to true.
     public let enableMic: Bool
     
@@ -12,28 +16,29 @@ public struct VoiceClientOptions: Codable {
     public let services: [String: String]
     
     /// Further configuration options for the backend.
-    public let config: [ServiceConfig]
+    @available(*, deprecated, message: "Use params.config.")
+    public let config: [ServiceConfig]?
     
     /// Custom HTTP headers to be sent with the POST request to baseUrl.
-    public let customHeaders: [[String: String]]
+    @available(*, deprecated, message: "Use params.headers.")
+    public let customHeaders: [[String: String]]?
     
-    /// Custom HTTP headers to be sent with the POST request to baseUrl.
+    /// Custom HTTP body params to be sent with the POST request to baseUrl.
+    @available(*, deprecated, message: "Use params.requestData.")
     public let customBodyParams: Value?
-    
-    public init() {
-        self.init(enableMic: true, enableCam: true, services: [:], config: [])
-    }
     
     public init(
         enableMic: Bool = true,
         enableCam: Bool = false,
+        params: RTVIClientParams,
         services: [String: String] = [:],
-        config: [ServiceConfig] = [],
-        customHeaders: [[String: String]] = [],
+        config: [ServiceConfig]? = nil,
+        customHeaders: [[String: String]]? = nil,
         customBodyParams: Value? = nil
     ) {
         self.enableMic = enableMic
         self.enableCam = enableCam
+        self.params = params
         self.services = services
         self.config = config
         self.customHeaders = customHeaders
