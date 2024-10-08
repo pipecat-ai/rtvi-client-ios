@@ -106,12 +106,14 @@ open class RTVIClient {
     }
     
     public init(baseUrl:String? = nil, transport:Transport, options: RTVIClientOptions) {
+        Logger.shared.info("Initializing RTVI Client iOS version \(RTVIClient.libraryVersion)")
+        
         self.baseUrl = baseUrl ?? options.params.baseUrl
         self.options = options
         self.transport = transport
         
         let headers = options.customHeaders ?? options.params.headers
-        let requestData = options.customBodyParams ?? options.params.requestData
+        let requestData = RTVIClient.appendRtviClientVersion(options.customBodyParams ?? options.params.requestData)
         
         let httpMessageDispatcher = HTTPMessageDispatcher.init(baseUrl: self.baseUrl, endpoints: self.options.params.endpoints, headers: headers, requestData: requestData)
         self.messageDispatcher = MessageDispatcher.init(transport: transport, httpMessageDispatcher: httpMessageDispatcher)
@@ -164,7 +166,7 @@ open class RTVIClient {
         }
         
         do {
-            let requestData = options.customBodyParams ?? options.params.requestData
+            let requestData = RTVIClient.appendRtviClientVersion(options.customBodyParams ?? options.params.requestData)
             let config = options.config ?? options.params.config
             if let customBodyParams = requestData {
                 var customBundle:Value = try await customBodyParams.convertToRtviValue()
@@ -181,13 +183,17 @@ open class RTVIClient {
             
             let (data, response) = try await URLSession.shared.data(for: request)
             
-            guard let httpResponse = response as? HTTPURLResponse, httpResponse.statusCode == 200 else {
-                throw HttpError()
+            guard let httpResponse = response as? HTTPURLResponse, ( httpResponse.statusCode >= 200 && httpResponse.statusCode <= 299 ) else {
+                let errorMessage = String(data: data, encoding: .utf8) ?? "Unknown error"
+                let message = "Failed while authenticating: \(errorMessage)"
+                Logger.shared.error(message)
+                throw HttpError(message: message)
             }
             
             return AuthBundle(data: String(data: data, encoding: .utf8)!)
         } catch {
-            throw HttpError(underlyingError: error)
+            Logger.shared.error(error.localizedDescription)
+            throw HttpError(message: "Failed while authenticating.", underlyingError: error)
         }
     }
     
@@ -558,4 +564,5 @@ open class RTVIClient {
             throw BotNotReadyError()
         }
     }
+
 }

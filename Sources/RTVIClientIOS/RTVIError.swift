@@ -39,11 +39,12 @@ public struct InvalidAuthBundleError: RTVIError {
 
 /// Failed to fetch the authentication bundle from the RTVI backend.
 public struct HttpError: RTVIError {
-    public let message: String = "Failed to fetch the auth bundle."
+    public let message: String
     public let underlyingError: Error?
     
-    public init(underlyingError: Error? = nil) {
+    public init(message: String, underlyingError: Error? = nil) {
         self.underlyingError = underlyingError
+        self.message = message
     }
 }
 

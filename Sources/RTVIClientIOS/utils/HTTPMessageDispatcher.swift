@@ -68,7 +68,8 @@ class HTTPMessageDispatcher {
                 let task = session.dataTask(with: request)
                 task.resume()
             } catch {
-                throw HttpError(underlyingError: error)
+                Logger.shared.error(error.localizedDescription)
+                throw HttpError(message: "Failed while requesting a single time action.", underlyingError: error)
             }
         }
     }
