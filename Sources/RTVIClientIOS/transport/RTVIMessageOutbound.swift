@@ -1,7 +1,7 @@
 import Foundation
 
 /// An RTVI control message sent to the Transport.
-public struct VoiceMessageOutbound: Encodable {
+public struct RTVIMessageOutbound: Encodable {
 
     let id: String
     let label: String
@@ -25,37 +25,37 @@ public struct VoiceMessageOutbound: Encodable {
         self.data = data
     }
 
-    static func action(actionData: ActionRequest) async throws -> VoiceMessageOutbound {
-        return VoiceMessageOutbound(
-            type: VoiceMessageOutbound.MessageType.ACTION,
+    static func action(actionData: ActionRequest) async throws -> RTVIMessageOutbound {
+        return RTVIMessageOutbound(
+            type: RTVIMessageOutbound.MessageType.ACTION,
             data: try await actionData.convertToRtviValue()
         )
     }
 
-    static func updateConfig(config: [ServiceConfig], interrupt: Bool) async throws -> VoiceMessageOutbound {
+    static func updateConfig(config: [ServiceConfig], interrupt: Bool) async throws -> RTVIMessageOutbound {
         let configAsValue = try await config.convertToRtviValue()
         let data = Value.object(["config": configAsValue, "interrupt": Value.boolean(interrupt)])
-        return VoiceMessageOutbound(
-            type: VoiceMessageOutbound.MessageType.UPDATE_CONFIG,
+        return RTVIMessageOutbound(
+            type: RTVIMessageOutbound.MessageType.UPDATE_CONFIG,
             data: data
         )
     }
 
-    static func describeConfig() -> VoiceMessageOutbound {
-        return VoiceMessageOutbound(
-            type: VoiceMessageOutbound.MessageType.DESCRIBE_CONFIG
+    static func describeConfig() -> RTVIMessageOutbound {
+        return RTVIMessageOutbound(
+            type: RTVIMessageOutbound.MessageType.DESCRIBE_CONFIG
         )
     }
 
-    static func getConfig() -> VoiceMessageOutbound {
-        return VoiceMessageOutbound(
-            type: VoiceMessageOutbound.MessageType.GET_CONFIG
+    static func getConfig() -> RTVIMessageOutbound {
+        return RTVIMessageOutbound(
+            type: RTVIMessageOutbound.MessageType.GET_CONFIG
         )
     }
 
-    static func describeActions() -> VoiceMessageOutbound {
-        return VoiceMessageOutbound(
-            type: VoiceMessageOutbound.MessageType.DESCRIBE_ACTIONS
+    static func describeActions() -> RTVIMessageOutbound {
+        return RTVIMessageOutbound(
+            type: RTVIMessageOutbound.MessageType.DESCRIBE_ACTIONS
         )
     }
 

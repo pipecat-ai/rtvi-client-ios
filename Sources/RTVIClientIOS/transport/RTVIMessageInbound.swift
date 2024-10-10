@@ -1,7 +1,7 @@
 import Foundation
 
 /// An RTVI control message received the by the Transport.
-public struct VoiceMessageInbound: Codable {
+public struct RTVIMessageInbound: Codable {
     
     let id: String?
     let label: String?
@@ -38,9 +38,9 @@ public struct VoiceMessageInbound: Codable {
         static let USER_TRANSCRIPTION = "user-transcription"
         
         /// STT transcript from the bot
-        static let BOT_TRANSCRIPTION = "tts-text"
+        static let BOT_TRANSCRIPTION = "bot-transcription"
         
-        // User started speaking
+        /// User started speaking
         static let USER_STARTED_SPEAKING = "user-started-speaking"
         
         // User stopped speaking
@@ -52,15 +52,32 @@ public struct VoiceMessageInbound: Codable {
         // Bot stopped speaking
         static let BOT_STOPPED_SPEAKING = "bot-stopped-speaking"
         
-        // Pipecat metrics
+        /// Pipecat metrics
         static let PIPECAT_METRICS = "pipecat-metrics"
+        
+        /// LLM transcript from the bot
+        static let BOT_LLM_TEXT = "bot-llm-text"
+        /// LLM transcript from the bot has started
+        static let BOT_LLM_STARTED = "bot-llm-started"
+        /// LLM transcript from the bot has stopped
+        static let BOT_LLM_STOPPED = "bot-llm-stopped"
+        
+        /// TTS transcript from the bot
+        static let BOT_TTS_TEXT = "bot-tts-text"
+        /// LLM transcript from the bot has started
+        static let BOT_TTS_STARTED = "bot-tts-started"
+        /// LLM transcript from the bot has stopped
+        static let BOT_TTS_STTOPED = "bot-tts-stopped"
+        
+        /// Text has been stored
+        static let STORAGE_ITEM_STORED = "storage-item-stored"
     }
 
     init(type: String?, data: String?) {
         self.init(type: type, data: data, id: String(UUID().uuidString.prefix(8)), label: "rtvi-ai", metrics: nil)
     }
     
-    init(type: String?, data: String?, id: String?, label: String?, metrics: PipecatMetrics?) {
+    init(type: String?, data: String?, id: String?, label: String? = "rtvi-ai", metrics: PipecatMetrics? = nil) {
         self.id = id
         self.label = label
         self.type = type

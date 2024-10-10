@@ -2,27 +2,25 @@ import Foundation
 
 /// The current state of the session transport.
 public enum TransportState {
-    case idle
+    case disconnected
     case initializing
     case initialized
-    case handshaking
+    case authenticating
     case connecting
     case connected
     case ready
-    case disconnected
+    case disconnecting
     case error
 }
 
 extension TransportState {
     public var description: String {
         switch self {
-        case .idle:
-            return "Idle"
         case .initializing:
             return "Initializing"
         case .initialized:
             return "Initialized"
-        case .handshaking:
+        case .authenticating:
             return "Handshaking"
         case .connecting:
             return "Connecting"
@@ -30,6 +28,8 @@ extension TransportState {
             return "Connected"
         case .ready:
             return "Ready"
+        case .disconnecting:
+            return "Disconnecting"
         case .disconnected:
             return "Disconnected"
         case .error:

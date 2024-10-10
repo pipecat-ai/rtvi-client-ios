@@ -3,9 +3,9 @@ import Foundation
 /// An RTVI transport.
 @MainActor
 public protocol Transport {
-    init(options: VoiceClientOptions)
-    var delegate: VoiceClientDelegate? { get set }
-    var onMessage: ((VoiceMessageInbound) -> Void)? { get set }
+    init(options: RTVIClientOptions)
+    var delegate: RTVIClientDelegate? { get set }
+    var onMessage: ((RTVIMessageInbound) -> Void)? { get set }
     
     func initDevices() async throws
     func release()
@@ -21,9 +21,10 @@ public protocol Transport {
     func enableCam(enable: Bool) async throws
     func isCamEnabled() -> Bool
     func isMicEnabled() -> Bool
-    func sendMessage(message: VoiceMessageOutbound) throws
+    func sendMessage(message: RTVIMessageOutbound) throws
     func state() -> TransportState
     func setState(state: TransportState)
+    func isConnected() -> Bool
     func tracks() -> Tracks?
     func expiry() -> Int?
 }

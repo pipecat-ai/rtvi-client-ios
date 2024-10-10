@@ -77,13 +77,13 @@ struct FunctionCallParams {
 typealias FunctionCallCallback = (FunctionCallParams) -> Promise<Value>
 
 /// Helper for interacting with an LLM service.
-public class LLMHelper: VoiceClientHelper {
+public class LLMHelper: RTVIClientHelper {
     
-    var voiceClient: VoiceClient
+    var voiceClient: RTVIClient
     var service: String
     public var delegate: LLMHelperDelegate?
     
-    required public init(service: String, voiceClient: VoiceClient) {
+    required public init(service: String, voiceClient: RTVIClient) {
         self.voiceClient = voiceClient
         self.service = service
     }
@@ -163,7 +163,7 @@ public class LLMHelper: VoiceClientHelper {
             action: "append_to_messages",
             arguments: [
                 Argument(
-                    name: self._getMessagesKey(),
+                    name: "messages",
                     value: [message].convertToRtviValue()
                 ),
                 Argument(
@@ -214,7 +214,7 @@ public class LLMHelper: VoiceClientHelper {
         }
     }
     
-    public func handleMessage(msg: VoiceMessageInbound) {
+    public func handleMessage(msg: RTVIMessageInbound) {
         guard let type = msg.type else {
             // Ignoring the message, it doesn't have a type
             return
@@ -239,7 +239,7 @@ public class LLMHelper: VoiceClientHelper {
                             arguments: functionCallData.args,
                             result: result
                         ).convertToRtviValue()
-                        let resultMessage = VoiceMessageOutbound(
+                        let resultMessage = RTVIMessageOutbound(
                             type: LLMMessageType.Outgoing.LLMFunctionCallResult,
                             data: resultData
                         )
