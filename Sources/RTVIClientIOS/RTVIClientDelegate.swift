@@ -1,7 +1,7 @@
 import Foundation
 
 /// Callbacks invoked when changes occur in the voice session.
-public protocol VoiceClientDelegate: AnyObject {
+public protocol RTVIClientDelegate: AnyObject {
     /// Invoked when the underlying transport has connected.
     func onConnected()
 
@@ -73,18 +73,39 @@ public protocol VoiceClientDelegate: AnyObject {
 
     /// Invoked when bot transcript data is avaiable.
     func onBotTranscript( data: String)
+    
+    /// Invoked when the bot LLM text has started.
+    func onBotLLMStarted()
+    
+    /// Invoked when received the bot transcription from the LLM.
+    func onBotLLMText(data: BotLLMText)
+    
+    /// Invoked when the bot LLM text has stopped.
+    func onBotLLMStopped()
+    
+    /// Invoked when the bot TTS text has started.
+    func onBotTTSStarted()
+    
+    /// Invoked when text is spoken by the bot.
+    func onBotTTSText(data: BotTTSText)
+    
+    /// Invoked when the bot TTS text has stopped.
+    func onBotTTSStopped()
+    
+    /// Invoked when data is stored by the bot.
+    func onStorageItemStored(data: StorageItemStoredData)
 
     /// Invoked when we receive an error message from the backend
     func onError( message: String)
 
     /// Invoked when a message from the backend is received which was not handled by the VoiceClient or a registered helper.
-    func onGenericMessage (message:VoiceMessageInbound)
+    func onGenericMessage (message:RTVIMessageInbound)
     
     /// Invoked when the set of available cam/mic tracks changes.
     func onTracksUpdated(tracks: Tracks)
 }
 
-public extension VoiceClientDelegate {
+public extension RTVIClientDelegate {
     func onConnected() {}
     func onDisconnected() {}
     func onTransportStateChanged( state: TransportState) {}
@@ -110,6 +131,13 @@ public extension VoiceClientDelegate {
     func onUserTranscript( data: Transcript) {}
     func onBotTranscript( data: String) {}
     func onError( message: String) {}
-    func onGenericMessage (message:VoiceMessageInbound) {}
+    func onGenericMessage (message:RTVIMessageInbound) {}
     func onTracksUpdated(tracks: Tracks) {}
+    func onBotLLMStarted() {}
+    func onBotLLMText(data: BotLLMText) {}
+    func onBotLLMStopped() {}
+    func onBotTTSStarted() {}
+    func onBotTTSText(data: BotTTSText) {}
+    func onBotTTSStopped() {}
+    func onStorageItemStored(data: StorageItemStoredData) {}
 }
