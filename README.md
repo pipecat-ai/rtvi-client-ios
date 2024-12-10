@@ -1,6 +1,6 @@
-# Real-Time Voice Inference iOS SDK
+# Pipecat iOS SDK
 
-[RTVI-AI](https://github.com/rtvi-ai/) is an open standard for Real-Time Voice [and Video] Inference.
+The [Pipecat](https://github.com/pipecat-ai/) project uses [RTVI-AI](https://github.com/rtvi-ai/), an open standard for Real-Time Voice [and Video] Inference.
 
 This iOS core library exports a VoiceClient that has no associated transport.
 
