@@ -12,14 +12,14 @@ The base class has no out-of-the-box bindings included.
 To depend on the client package, you can add this package via Xcode's package manager using the URL of this git repository directly, or you can declare your dependency in your `Package.swift`:
 
 ```swift
-.package(url: "https://github.com/rtvi-ai/rtvi-client-ios.git", from: "0.1.0"),
+.package(url: "https://github.com/pipecat-ai/pipecat-client-ios.git", from: "0.3.0"),
 ```
 
-and add `"RTVIClientIOS"` to your application/library target, `dependencies`, e.g. like this:
+and add `"PipecatClientIOS"` to your application/library target, `dependencies`, e.g. like this:
 
 ```swift
 .target(name: "YourApp", dependencies: [
-    .product(name: "RTVIClientIOS", package: "rtvi-client-ios")
+    .product(name: "PipecatClientIOS", package: "pipecat-client-ios")
 ],
 ```
 
