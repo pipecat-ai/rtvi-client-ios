@@ -1,4 +1,6 @@
-# Pipecat iOS SDK
+<h1><div align="center">
+ <img alt="pipecat" width="500px" height="auto" src="https://raw.githubusercontent.com/pipecat-ai/pipecat-client-ios/main/pipecat-ios.png">
+</div></h1>
 
 The [Pipecat](https://github.com/pipecat-ai/) project uses [RTVI-AI](https://github.com/rtvi-ai/), an open standard for Real-Time Voice [and Video] Inference.
 
