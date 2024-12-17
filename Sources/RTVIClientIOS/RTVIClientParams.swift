@@ -2,7 +2,8 @@
 public struct RTVIClientParams: Codable {
     
     /// The base URL for the RTVI POST request.
-    public let baseUrl: String
+    /// Not needed when using certain transports that don't communicate with an RTVI server.
+    public let baseUrl: String?
     
     /// Custom HTTP headers to be sent with the POST request to baseUrl.
     public let headers: [[String: String]]
@@ -17,7 +18,7 @@ public struct RTVIClientParams: Codable {
     public let config: [ServiceConfig]
     
     public init(
-        baseUrl: String,
+        baseUrl: String? = nil,
         headers: [[String: String]] = [],
         endpoints: RTVIURLEndpoints = RTVIURLEndpoints(),
         requestData: Value? = nil,

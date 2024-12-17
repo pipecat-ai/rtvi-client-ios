@@ -1,10 +1,15 @@
 import Foundation
 
+enum MessageDispatcherError: Error {
+    /// HTTP messages not supported when using certain transports that don't communicate with an RTVI server.
+    case httpMessagesNotSupported
+}
+
 /// Helper class for sending messages to the server and awaiting the response.
 class MessageDispatcher {
     
     private let transport: Transport
-    private let httpMessageDispatcher: HTTPMessageDispatcher
+    private let httpMessageDispatcher: HTTPMessageDispatcher?
     
     /// How long to wait before resolving the message/
     private var gcTime: TimeInterval
@@ -12,7 +17,7 @@ class MessageDispatcher {
     private var queue: [QueuedVoiceMessage] = []
     private var gcTimer: Timer?
 
-    init(transport: Transport, httpMessageDispatcher: HTTPMessageDispatcher) {
+    init(transport: Transport, httpMessageDispatcher: HTTPMessageDispatcher?) {
         self.gcTime = 10.0 // 10 seconds
         self.transport = transport
         self.httpMessageDispatcher = httpMessageDispatcher
@@ -35,7 +40,11 @@ class MessageDispatcher {
             if self.transport.isConnected() {
                 try self.transport.sendMessage(message: message)
             } else {
-                try self.httpMessageDispatcher.sendMessage(message: message)
+                if let httpMessageDispatcher {
+                    try httpMessageDispatcher.sendMessage(message: message)
+                } else {
+                    throw MessageDispatcherError.httpMessagesNotSupported
+                }
             }
         } catch {
             Logger.shared.error("Failed to send app message \(error)")

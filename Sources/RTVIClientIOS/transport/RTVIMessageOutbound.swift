@@ -3,18 +3,18 @@ import Foundation
 /// An RTVI control message sent to the Transport.
 public struct RTVIMessageOutbound: Encodable {
 
-    let id: String
-    let label: String
-    let type: String
-    let data: Value?
+    public let id: String
+    public let label: String
+    public let type: String
+    public let data: Value?
 
     /// Messages from the client to the server.
     public enum MessageType {
-        static let UPDATE_CONFIG = "update-config"
-        static let GET_CONFIG = "get-config"
-        static let DESCRIBE_CONFIG = "describe-config"
-        static let ACTION = "action"
-        static let DESCRIBE_ACTIONS = "describe-actions"
+        public static let UPDATE_CONFIG = "update-config"
+        public static let GET_CONFIG = "get-config"
+        public static let DESCRIBE_CONFIG = "describe-config"
+        public static let ACTION = "action"
+        public static let DESCRIBE_ACTIONS = "describe-actions"
         public static let CLIENT_READY = "client-ready"
     }
 
@@ -59,6 +59,17 @@ public struct RTVIMessageOutbound: Encodable {
         )
     }
 
+    // Decode action data, if this outbound message represents an action request.
+    // This is useful for implementing transports that can intercept and handle action requests in their own way.
+    public func decodeActionData() -> ActionRequest? {
+        if type == RTVIMessageOutbound.MessageType.ACTION {
+            do {
+                let encodedData = try JSONEncoder().encode(data)
+                return try JSONDecoder().decode(ActionRequest.self, from: encodedData)
+            } catch {}
+        }
+        return nil
+    }
 }
 
 

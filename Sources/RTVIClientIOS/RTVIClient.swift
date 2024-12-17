@@ -6,7 +6,7 @@ open class RTVIClient {
     
     private let options: RTVIClientOptions
     private var transport: Transport
-    private var baseUrl: String
+    private var baseUrl: String? // see RTVIClientParams for explanation of optionality
 
     private let messageDispatcher: MessageDispatcher
     private var helpers: [String: RegisteredHelper] = [:]
@@ -123,10 +123,13 @@ open class RTVIClient {
         let headers = options.customHeaders ?? options.params.headers
         let requestData = RTVIClient.appendRtviClientVersion(options.customBodyParams ?? options.params.requestData)
         
-        let httpMessageDispatcher = HTTPMessageDispatcher.init(baseUrl: self.baseUrl, endpoints: self.options.params.endpoints, headers: headers, requestData: requestData)
+        var httpMessageDispatcher: HTTPMessageDispatcher? = nil
+        if let baseUrl {
+            httpMessageDispatcher = HTTPMessageDispatcher.init(baseUrl: baseUrl, endpoints: self.options.params.endpoints, headers: headers, requestData: requestData)
+        }
         self.messageDispatcher = MessageDispatcher.init(transport: transport, httpMessageDispatcher: httpMessageDispatcher)
         
-        httpMessageDispatcher.onMessage = self.onMessage
+        httpMessageDispatcher?.onMessage = self.onMessage
         self.transport.onMessage = self.onMessage
     }
     
@@ -152,12 +155,20 @@ open class RTVIClient {
         self.devicesInitialized = true
     }
     
-    private func connectUrl() -> String {
-        return self.baseUrl + self.options.params.endpoints.connect
+    private func connectUrl() -> String? {
+        if let baseUrl {
+            return baseUrl + self.options.params.endpoints.connect
+        }
+        return nil
     }
     
-    private func fetchAuthBundle() async throws -> AuthBundle {
-        guard let url = URL(string: self.connectUrl()) else {
+    private func fetchAuthBundle() async throws -> AuthBundle? {
+        guard let connectUrl = self.connectUrl() else {
+            // Assume we're using a transport that doesn't communicate with an RTVI server.
+            return nil
+        }
+        
+        guard let url = URL(string: connectUrl) else {
             throw InvalidAuthBundleError()
         }
         

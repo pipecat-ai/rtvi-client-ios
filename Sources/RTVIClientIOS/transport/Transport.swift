@@ -9,7 +9,7 @@ public protocol Transport {
     
     func initDevices() async throws
     func release()
-    func connect(authBundle: AuthBundle) async throws
+    func connect(authBundle: AuthBundle?) async throws
     func disconnect() async throws
     func getAllMics() -> [MediaDeviceInfo]
     func getAllCams() -> [MediaDeviceInfo]

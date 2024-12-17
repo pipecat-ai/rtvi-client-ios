@@ -1,8 +1,8 @@
 import Foundation
 
 public struct ServiceConfig: Codable {
-    let service: String
-    let options: [Option]
+    public let service: String
+    public let options: [Option]
     
     public init(service: String, options: [Option]) {
         self.service = service

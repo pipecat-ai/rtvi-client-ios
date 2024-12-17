@@ -1,8 +1,8 @@
 import Foundation
 
 public struct Option: Codable {
-    let name: String
-    let value: Value
+    public let name: String
+    public let value: Value
     
     public init(name: String, value: Value) {
         self.name = name
